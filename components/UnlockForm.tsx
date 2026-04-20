@@ -19,6 +19,15 @@ export function UnlockForm({ defaultPlan }: UnlockFormProps) {
   const [isVerifying, setIsVerifying] = useState(false);
 
   const checkoutUrl = useMemo(() => {
+    const stripeLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK;
+    if (stripeLink) {
+      const url = new URL(stripeLink);
+      if (email) {
+        url.searchParams.set("prefilled_email", email);
+      }
+      return url.toString();
+    }
+
     const checkoutPath = process.env.NEXT_PUBLIC_LEMON_SQUEEZY_PRODUCT_ID;
     if (!checkoutPath) {
       return "";

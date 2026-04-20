@@ -47,15 +47,18 @@ const plans: Plan[] = [
 ];
 
 export function PricingCards() {
+  const stripePaymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK ?? "";
   const productId = process.env.NEXT_PUBLIC_LEMON_SQUEEZY_PRODUCT_ID ?? "";
 
   const checkoutLink = useMemo(() => {
+    if (stripePaymentLink) {
+      return stripePaymentLink;
+    }
     if (!productId) {
       return "#";
     }
-
     return `https://checkout.lemonsqueezy.com/buy/${productId}?embed=1&media=0&logo=0&desc=0`;
-  }, [productId]);
+  }, [productId, stripePaymentLink]);
 
   return (
     <>
@@ -94,9 +97,9 @@ export function PricingCards() {
           </Card>
         ))}
       </div>
-      {!productId && (
+      {!productId && !stripePaymentLink && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
-          Add <code>NEXT_PUBLIC_LEMON_SQUEEZY_PRODUCT_ID</code> to enable checkout.
+          Add <code>NEXT_PUBLIC_STRIPE_PAYMENT_LINK</code> to enable checkout.
         </p>
       )}
     </>
