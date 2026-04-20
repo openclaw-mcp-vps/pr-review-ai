@@ -1,76 +1,29 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { SubscriptionPlan, SubscriptionStatus } from "@/lib/db";
+import type { PlanType, SubscriptionStatus } from "@/lib/types";
 
-type LemonWebhookPayload = {
-  meta?: {
-    event_name?: string;
-    custom_data?: Record<string, unknown>;
-  };
-  data?: {
-    id?: string;
-    attributes?: {
-      status?: string;
-      user_email?: string;
-      customer_email?: string;
-      custom_data?: Record<string, unknown>;
-      variant_name?: string;
-      product_name?: string;
-      first_order_item?: {
-        variant_name?: string;
-        product_name?: string;
-      };
-    };
-  };
-};
-
-export type LemonSubscriptionUpdate = {
-  scope: string;
-  plan: SubscriptionPlan;
+export interface LemonEvent {
+  eventName: string;
+  email: string;
+  plan: PlanType;
   status: SubscriptionStatus;
-  lemonSubscriptionId: string | null;
-  lemonCustomerEmail: string | null;
-  githubUserId: string | null;
-};
-
-function safeCompare(left: string, right: string) {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-
-  if (leftBuffer.length !== rightBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(leftBuffer, rightBuffer);
+  repoFullName?: string;
+  orgName?: string;
+  orderId?: string;
+  subscriptionId?: string;
+  renewsAt?: string;
 }
 
-export function verifyLemonWebhookSignature(rawBody: string, signatureHeader: string | null) {
-  const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
-
-  if (!secret || !signatureHeader) {
-    return false;
-  }
-
-  const digest = createHmac("sha256", secret).update(rawBody).digest("hex");
-  return safeCompare(digest, signatureHeader);
-}
-
-function normalizeStatus(eventName: string, rawStatus: string | undefined): SubscriptionStatus {
-  const loweredEvent = eventName.toLowerCase();
-  const loweredStatus = rawStatus?.toLowerCase() ?? "";
-
-  if (loweredEvent.includes("cancel") || loweredEvent.includes("expired") || loweredStatus === "cancelled") {
-    return "cancelled";
-  }
-
-  if (loweredEvent.includes("payment_failed") || loweredStatus === "past_due") {
-    return "past_due";
+function normalizeStatus(eventName: string, currentStatus: string | undefined): SubscriptionStatus {
+  if (eventName.includes("cancel") || currentStatus === "cancelled" || currentStatus === "expired") {
+    return "canceled";
   }
 
   if (
-    loweredStatus === "active" ||
-    loweredStatus === "on_trial" ||
-    loweredEvent.includes("subscription_created") ||
-    loweredEvent.includes("subscription_resumed")
+    currentStatus === "active" ||
+    currentStatus === "on_trial" ||
+    currentStatus === "paid" ||
+    eventName.includes("created") ||
+    eventName.includes("resumed")
   ) {
     return "active";
   }
@@ -78,66 +31,118 @@ function normalizeStatus(eventName: string, rawStatus: string | undefined): Subs
   return "inactive";
 }
 
-function readStringRecordValue(record: Record<string, unknown> | undefined, keys: string[]) {
-  if (!record) {
-    return null;
+function inferPlan(price: number | undefined, customPlan: string | undefined): PlanType {
+  if (customPlan === "repo" || customPlan === "org") {
+    return customPlan;
   }
 
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
-    }
+  if (typeof price === "number" && price >= 9900) {
+    return "org";
   }
 
-  return null;
+  return "repo";
 }
 
-export function parseLemonSubscriptionUpdate(payload: LemonWebhookPayload): LemonSubscriptionUpdate | null {
-  const eventName = payload.meta?.event_name ?? "";
+export function verifyLemonSignature(body: string, signature: string | null): boolean {
+  const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
+  if (!secret) {
+    return false;
+  }
+
+  if (!signature) {
+    return false;
+  }
+
+  const computed = createHmac("sha256", secret).update(body).digest("hex");
+  const computedBytes = Buffer.from(computed);
+  const signatureBytes = Buffer.from(signature);
+
+  if (computedBytes.length !== signatureBytes.length) {
+    return false;
+  }
+
+  return timingSafeEqual(computedBytes, signatureBytes);
+}
+
+export function parseLemonWebhook(body: string): LemonEvent | null {
+  const payload = JSON.parse(body) as {
+    meta?: {
+      event_name?: string;
+      custom_data?: Record<string, string | undefined>;
+    };
+    data?: {
+      id?: string;
+      attributes?: {
+        status?: string;
+        user_email?: string;
+        customer_email?: string;
+        identifier?: string;
+        order_id?: number;
+        first_order_item?: {
+          price?: number;
+        };
+        renews_at?: string;
+      };
+    };
+  };
+
+  const eventName = payload.meta?.event_name ?? "unknown";
   const attrs = payload.data?.attributes;
+  const customData = payload.meta?.custom_data ?? {};
 
-  const customData = (attrs?.custom_data ?? payload.meta?.custom_data ?? {}) as Record<string, unknown>;
-
-  const repoScope = readStringRecordValue(customData, ["scope", "repo_full_name", "repo"]);
-  const org = readStringRecordValue(customData, ["org", "organization"]);
-  const githubUserId = readStringRecordValue(customData, ["github_user_id", "user_id"]);
-
-  const scope = repoScope ?? (org ? `org:${org}` : null);
-  if (!scope) {
+  const email = (attrs?.user_email ?? attrs?.customer_email ?? customData.email ?? "").toLowerCase();
+  if (!email) {
     return null;
   }
 
-  const explicitPlan = readStringRecordValue(customData, ["plan"]);
-  const inferredPlan: SubscriptionPlan =
-    explicitPlan === "org" || scope.startsWith("org:") ? "org" : ("repo" as SubscriptionPlan);
+  const plan = inferPlan(attrs?.first_order_item?.price, customData.plan);
+  const status = normalizeStatus(eventName, attrs?.status);
 
   return {
-    scope,
-    plan: inferredPlan,
-    status: normalizeStatus(eventName, attrs?.status),
-    lemonSubscriptionId: payload.data?.id ?? null,
-    lemonCustomerEmail: attrs?.user_email ?? attrs?.customer_email ?? null,
-    githubUserId,
+    eventName,
+    email,
+    plan,
+    status,
+    repoFullName: customData.repo_full_name,
+    orgName: customData.org_name,
+    orderId: attrs?.order_id ? String(attrs.order_id) : undefined,
+    subscriptionId: attrs?.identifier ?? payload.data?.id,
+    renewsAt: attrs?.renews_at
   };
 }
 
-export function buildLemonCheckoutUrl(input: {
-  productId: string;
-  scope: string;
-  githubUserId: string;
-  plan: SubscriptionPlan;
-}) {
-  const base = `https://checkout.lemonsqueezy.com/buy/${input.productId}`;
-  const params = new URLSearchParams({
-    embed: "1",
-    media: "0",
-    logo: "0",
-    desc: "0",
-    "checkout[custom][scope]": input.scope,
-    "checkout[custom][plan]": input.plan,
-    "checkout[custom][github_user_id]": input.githubUserId,
-  });
+export function buildCheckoutUrl(input: {
+  plan: PlanType;
+  repoFullName?: string;
+  email?: string;
+  origin: string;
+}): string | null {
+  const productId = process.env.NEXT_PUBLIC_LEMON_SQUEEZY_PRODUCT_ID;
+  if (!productId) {
+    return null;
+  }
 
-  return `${base}?${params.toString()}`;
+  const base = productId.startsWith("http")
+    ? new URL(productId)
+    : new URL(`https://checkout.lemonsqueezy.com/buy/${productId}`);
+
+  base.searchParams.set("embed", "1");
+  base.searchParams.set("media", "0");
+  base.searchParams.set("logo", "0");
+  base.searchParams.set("checkout[custom][plan]", input.plan);
+
+  if (input.email) {
+    base.searchParams.set("checkout[email]", input.email);
+    base.searchParams.set("checkout[custom][email]", input.email);
+  }
+
+  if (input.repoFullName) {
+    base.searchParams.set("checkout[custom][repo_full_name]", input.repoFullName);
+  }
+
+  const successUrl = new URL("/unlock", input.origin);
+  successUrl.searchParams.set("status", "paid");
+  base.searchParams.set("checkout[success_url]", successUrl.toString());
+
+  return base.toString();
 }

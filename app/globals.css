@@ -2,29 +2,27 @@
 
 :root {
   color-scheme: dark;
-  --background: #0d1117;
-  --foreground: #e6edf3;
-  --muted: #8b949e;
-  --border: #30363d;
-  --surface: #161b22;
-  --surface-2: #1c2128;
-  --accent: #2f81f7;
-  --accent-2: #1f6feb;
 }
 
 * {
-  border-color: var(--border);
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: radial-gradient(1200px 700px at 70% -10%, rgba(47, 129, 247, 0.2), transparent 50%),
-    radial-gradient(800px 600px at 0% 0%, rgba(31, 111, 235, 0.18), transparent 50%),
-    var(--background);
-  color: var(--foreground);
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  min-height: 100dvh;
+  font-family: var(--font-heading), sans-serif;
+  background:
+    radial-gradient(1100px 700px at 85% -10%, rgba(16, 185, 129, 0.18), transparent 52%),
+    radial-gradient(900px 500px at -10% 5%, rgba(59, 130, 246, 0.13), transparent 58%),
+    #0d1117;
 }
 
-a {
-  color: inherit;
+pre,
+code {
+  font-family: var(--font-mono), monospace;
 }

@@ -1,34 +1,19 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      data-slot="card"
-      className={cn("rounded-xl border border-zinc-800 bg-zinc-900/50 text-zinc-100", className)}
+      className={cn("rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]", className)}
       {...props}
     />
   );
 }
 
-function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="card-header" className={cn("flex flex-col gap-1.5 p-6", className)} {...props} />;
+export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h3 className={cn("text-xl font-semibold text-zinc-50", className)} {...props} />;
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
-  return <h3 data-slot="card-title" className={cn("text-xl font-semibold leading-none", className)} {...props} />;
+export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn("text-sm text-zinc-400", className)} {...props} />;
 }
-
-function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
-  return <p data-slot="card-description" className={cn("text-sm text-zinc-300", className)} {...props} />;
-}
-
-function CardContent({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="card-content" className={cn("p-6 pt-0", className)} {...props} />;
-}
-
-function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="card-footer" className={cn("flex items-center p-6 pt-0", className)} {...props} />;
-}
-
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent };

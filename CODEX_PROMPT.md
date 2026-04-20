@@ -11,22 +11,22 @@ NICHE: code-review
 PRICE: $$15/mo per repo, $99/mo org/mo
 
 ARCHITECTURE SPEC:
-A Next.js web app that receives GitHub webhook events, analyzes PR diffs using Claude Sonnet 4, and posts AI-generated code review comments back to GitHub. The app handles user authentication via GitHub OAuth, subscription management through Lemon Squeezy, and maintains a simple database to track repos and review history.
+Simple webhook-based service that receives GitHub PR events, analyzes code changes with Claude Sonnet, and posts review comments back to the PR. Built with Next.js API routes for webhooks, Prisma for subscription tracking, and Lemon Squeezy for payments.
 
 PLANNED FILES:
-- app/api/webhooks/github/route.ts
-- app/api/auth/github/route.ts
-- app/api/webhooks/lemonsqueezy/route.ts
-- app/dashboard/page.tsx
-- app/page.tsx
-- lib/github.ts
-- lib/claude.ts
-- lib/db.ts
-- lib/lemonsqueezy.ts
-- components/repo-setup.tsx
-- components/pricing-cards.tsx
+- pages/api/webhook/github.js
+- pages/api/webhook/lemonsqueezy.js
+- pages/api/auth/github.js
+- lib/claude-reviewer.js
+- lib/github-client.js
+- lib/lemonsqueezy.js
+- components/RepoSelector.jsx
+- components/PricingCard.jsx
+- pages/dashboard.js
+- pages/index.js
+- prisma/schema.prisma
 
-DEPENDENCIES: next, tailwindcss, @anthropic-ai/sdk, @octokit/rest, prisma, @prisma/client, next-auth, @lemonsqueezy/lemonsqueezy.js, stripe, zod, lucide-react
+DEPENDENCIES: next, tailwindcss, @anthropic-ai/sdk, @octokit/rest, prisma, @prisma/client, @lemonsqueezy/lemonsqueezy.js, crypto, next-auth, swr
 
 REQUIREMENTS:
 - Next.js 15 with App Router (app/ directory)

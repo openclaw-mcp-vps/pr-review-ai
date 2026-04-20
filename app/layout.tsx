@@ -1,42 +1,67 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import Script from "next/script";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import "@/app/globals.css";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  display: "swap"
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap"
+});
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
-  title: "PR Review AI | Instant AI Review on Every Pull Request",
+  metadataBase: new URL("https://pr-review-ai.com"),
+  title: {
+    default: "PR Review AI",
+    template: "%s | PR Review AI"
+  },
   description:
-    "PR Review AI analyzes every pull request in under 60 seconds and posts actionable feedback on bug risks, security issues, style problems, and test coverage gaps.",
+    "Instant AI review on every pull request. Catch bug risks, security issues, style flags, and test coverage gaps before merge.",
+  keywords: [
+    "PR review",
+    "GitHub webhook",
+    "AI code review",
+    "small team dev tools",
+    "Claude Sonnet",
+    "Lemon Squeezy SaaS"
+  ],
   openGraph: {
+    type: "website",
+    siteName: "PR Review AI",
     title: "PR Review AI — instant AI review on every pull request",
     description:
-      "Catch bugs before merge with automated AI code reviews delivered directly in GitHub pull request comments.",
-    url: "/",
-    siteName: "PR Review AI",
-    type: "website",
+      "Webhook-based AI reviewer for solo devs and small teams. Posts actionable pull request feedback in under 60 seconds.",
+    url: "https://pr-review-ai.com",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "PR Review AI"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
     title: "PR Review AI",
-    description:
-      "Automated AI code review for indie founders and small teams. Fast GitHub pull request feedback in under 60 seconds.",
-  },
-  alternates: {
-    canonical: "/",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
+    description: "Instant AI review comments on every GitHub pull request.",
+    images: ["/og-image.png"]
+  }
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html className={`${spaceGrotesk.variable} ${jetBrainsMono.variable}`} lang="en">
+      <body className="min-h-screen bg-[#0d1117] text-zinc-100 antialiased">
+        {children}
+        <Script src="https://assets.lemonsqueezy.com/lemon.js" strategy="afterInteractive" />
+      </body>
     </html>
   );
 }
